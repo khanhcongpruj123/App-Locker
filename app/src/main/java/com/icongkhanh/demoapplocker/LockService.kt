@@ -1,7 +1,6 @@
 package com.icongkhanh.demoapplocker
 
-import android.app.ActivityManager
-import android.app.IntentService
+import android.app.*
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
@@ -9,12 +8,16 @@ import android.content.Intent
 import android.os.Build
 import android.text.TextUtils
 import android.util.Log
+import android.widget.RemoteViews
+import androidx.core.app.NotificationCompat
 
 class LockService : IntentService("DemoService") {
 
+    private val CHANNEL_ID = "DemoAppLock"
+
     private lateinit var sUsageStatsManager: UsageStatsManager
     private lateinit var activityManager: ActivityManager
-    private var packageNameUnlock: String? = null
+    private var packageNameUnlock: String = "com.icongkhanh.NONAME"
 
     override fun onCreate() {
         super.onCreate()
@@ -26,9 +29,13 @@ class LockService : IntentService("DemoService") {
             sUsageStatsManager =
                 this.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         }
+
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+
+        createNotificationChannel()
+        startForeground(1, buildNotification())
 
         val action = intent?.action
         action?.let {
@@ -47,8 +54,8 @@ class LockService : IntentService("DemoService") {
             val packageName = getLauncherTopApp(applicationContext, activityManager)
             val pref = applicationContext.getSharedPreferences(Constant.APP_LOCK, Context.MODE_PRIVATE)
             val isLockedApp = pref.getBoolean(packageName, false)
-            Log.d("AppLog", "${packageName} - $isLockedApp")
             if (packageName == "com.sec.android.app.launcher") packageNameUnlock = "com.icongkhanh.NONAME"
+            Log.d("AppLog", "${packageName} - ${packageNameUnlock}")
             if (isLockedApp && packageName != packageNameUnlock) {
                 val intent = Intent(this, LockActivity::class.java)
                 intent.putExtra("packagename", packageName)
@@ -58,6 +65,23 @@ class LockService : IntentService("DemoService") {
 
             Thread.sleep(100)
         }
+    }
+
+    private fun buildNotification(): Notification {
+        val pendingIntent: PendingIntent =
+            Intent(this, MainActivity::class.java).let { notificationIntent ->
+                PendingIntent.getActivity(this, 0, notificationIntent, 0)
+            }
+
+        val layout = RemoteViews(packageName, R.layout.notification)
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(layout)
+            .build()
     }
 
     fun getLauncherTopApp(
@@ -88,6 +112,32 @@ class LockService : IntentService("DemoService") {
             }
         }
         return ""
+    }
+
+    /**
+     * above android O, must create notification channel before create notification
+     * */
+    private fun createNotificationChannel() {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Demo App Lock"
+            val descriptionText = "description"
+            val importance = NotificationManager.IMPORTANCE_LOW
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            // Register the channel with the system
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    override fun onDestroy() {
+
+        stopForeground(true)
+
+        super.onDestroy()
     }
 
 }

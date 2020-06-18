@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.icongkhanh.demoapplocker">
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
